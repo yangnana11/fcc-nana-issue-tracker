@@ -10,8 +10,6 @@ var fccTestingRoutes  = require('./routes/fcctesting.js');
 var runner            = require('./test-runner');
 
 var app = express();
-const http        = require('http').Server(app);
-const io          = require('socket.io')(http);
 
 app.use('/public', express.static(process.cwd() + '/public'));
 
@@ -35,9 +33,10 @@ app.route('/')
 
 //For FCC testing purposes
 fccTestingRoutes(app);
+console.log(process.env.NODE_ENV);
 
 //Routing for API 
-apiRoutes(app, io);  
+apiRoutes(app);  
     
 //404 Not Found Middleware
 app.use(function(req, res, next) {
@@ -64,3 +63,21 @@ app.listen(process.env.PORT || 3000, function () {
 });
 
 module.exports = app; //for testing
+
+function testFilter(tests, type, n) {
+  var out;
+  switch (type) {
+    case 'unit' :
+      out = tests.filter(t => t.context.match('Unit Tests'));
+      break;
+    case 'functional':
+      out = tests.filter(t => t.context.match('Functional Tests') && !t.title.match('#example'));
+      break;
+    default:
+      out = tests;
+  }
+  if(n !== undefined) {
+    return out[n] || out;
+  }
+  return out;
+}

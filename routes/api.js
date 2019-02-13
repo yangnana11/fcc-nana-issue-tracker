@@ -16,7 +16,7 @@ const mongoose = require('mongoose');
 const CONNECTION_STRING = process.env.DB; //MongoClient.connect(CONNECTION_STRING, function(err, db) {});
 mongoose.connect(CONNECTION_STRING, { useNewUrlParser: true });
 
-module.exports = function (app, io) {    
+module.exports = function (app) {    
   
   const issueSchema = new mongoose.Schema({
     issue_project: {
@@ -50,7 +50,8 @@ module.exports = function (app, io) {
       default: Date.now
     },
     updated_on: {
-      type: Date
+      type: Date,
+      default: null
     }
   }, {
     versionKey: false // You should be aware of the outcome after set to false
@@ -60,15 +61,26 @@ module.exports = function (app, io) {
   app.route('/api/issues/:project')
   
     .get(function (req, res){
-      var project = req.params.project;
-      const query = Issue.find({issue_project: project});
+      var project = req.params.project;      
+      let findArray = {issue_project: project};
+      if (Object.entries(req.query).length !== 0) {        
+        for (let item in req.query) {
+          findArray[item] = req.query[item];
+        }        
+      }      
+      const query = Issue.find(findArray);
       query.select('-issue_project')
       .exec((err,result) => {err ? res.json(err) : res.json(result)});
     })
     
     .post(function (req, res){
       var project = req.params.project;
-      let {issue_title ,issue_text, created_by, assigned_to, status_text} = req.body;
+      let {issue_title ,issue_text, created_by, assigned_to, status_text} = req.body;    
+      if (issue_title.length==0 || issue_text.length ==0 || created_by.length==0) {
+        res.status(500);
+        res.json();
+        return;
+      }
       let newIs = new Issue({
         issue_project: project,
         issue_title,
@@ -91,6 +103,11 @@ module.exports = function (app, io) {
     
     .put(function (req, res){
       var project = req.params.project;
+      if (Object.entries(req.body).length === 0 && req.body.constructor === Object) {
+        res.status(500);
+        res.json();
+        return;
+      }
       let {_id} = req.body;      
       let update_array = {_id};
       if (req.body.hasOwnProperty('open')) {
